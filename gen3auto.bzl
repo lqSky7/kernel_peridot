@@ -3,6 +3,7 @@ load(":msm_kernel_la.bzl", "define_msm_la")
 load(":image_opts.bzl", "boot_image_opts")
 
 target_name = "gen3auto"
+target_arch = "gen3auto"
 
 def define_gen3auto():
     _gen3auto_in_tree_modules = [
@@ -39,6 +40,26 @@ def define_gen3auto():
         "drivers/gpu/drm/display/drm_display_helper.ko",
         "drivers/gpu/drm/display/drm_dp_aux_bus.ko",
         "drivers/hwspinlock/qcom_hwspinlock.ko",
+        "drivers/hwtracing/coresight/coresight.ko",
+        "drivers/hwtracing/coresight/coresight-csr.ko",
+        "drivers/hwtracing/coresight/coresight-cti.ko",
+        "drivers/hwtracing/coresight/coresight-dummy.ko",
+        "drivers/hwtracing/coresight/coresight-etm4x.ko",
+        "drivers/hwtracing/coresight/coresight-funnel.ko",
+        "drivers/hwtracing/coresight/coresight-hwevent.ko",
+        "drivers/hwtracing/coresight/coresight-remote-etm.ko",
+        "drivers/hwtracing/coresight/coresight-replicator.ko",
+        "drivers/hwtracing/coresight/coresight-stm.ko",
+        "drivers/hwtracing/coresight/coresight-tgu.ko",
+        "drivers/hwtracing/coresight/coresight-tmc.ko",
+        "drivers/hwtracing/coresight/coresight-tmc-sec.ko",
+        "drivers/hwtracing/coresight/coresight-tpda.ko",
+        "drivers/hwtracing/coresight/coresight-tpdm.ko",
+        "drivers/hwtracing/stm/stm_console.ko",
+        "drivers/hwtracing/stm/stm_core.ko",
+        "drivers/hwtracing/stm/stm_ftrace.ko",
+        "drivers/hwtracing/stm/stm_p_basic.ko",
+        "drivers/hwtracing/stm/stm_p_ost.ko",
         "drivers/i2c/busses/i2c-msm-geni.ko",
         "drivers/i2c/i2c-dev.ko",
         "drivers/i2c/i2c-mux.ko",
@@ -74,9 +95,6 @@ def define_gen3auto():
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
-        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-kalama.ko",
-        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-pineapple.ko",
-        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-waipio.ko",
         "drivers/pinctrl/pinctrl-sx150x.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-sdmshrike.ko",
@@ -113,6 +131,7 @@ def define_gen3auto():
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/crypto-qti.ko",
+        "drivers/soc/qcom/dcc_v2.ko",
         "drivers/soc/qcom/dcvs/bwmon.ko",
         "drivers/soc/qcom/dcvs/dcvs_fp.ko",
         "drivers/soc/qcom/dcvs/memlat.ko",
@@ -126,12 +145,14 @@ def define_gen3auto():
         "drivers/soc/qcom/mem_buf/mem_buf_msgq.ko",
         "drivers/soc/qcom/memory_dump_v2.ko",
         "drivers/soc/qcom/minidump.ko",
+        "drivers/soc/qcom/msm_performance.ko",
         "drivers/soc/qcom/pdr_interface.ko",
         "drivers/soc/qcom/qcom_aoss.ko",
         "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_hib.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
+        "drivers/soc/qcom/qcom_secure_hibernation.ko",
         "drivers/soc/qcom/qcom_soc_wdt.ko",
         "drivers/soc/qcom/qcom_stats.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
@@ -156,7 +177,6 @@ def define_gen3auto():
         "drivers/thermal/qcom/qti_cpufreq_cdev.ko",
         "drivers/thermal/qcom/qti_devfreq_cdev.ko",
         "drivers/thermal/qcom/qti_qmi_cdev.ko",
-        "drivers/thermal/qcom/thermal_pause.ko",
         "drivers/tty/serial/msm_geni_serial.ko",
         "drivers/ufs/host/ufs_qcom.ko",
         "drivers/ufs/host/ufshcd-crypto-qti.ko",
@@ -170,7 +190,6 @@ def define_gen3auto():
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/virt/gunyah/gh_msgq.ko",
         "drivers/virt/gunyah/gh_rm_drv.ko",
-        "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
@@ -197,6 +216,7 @@ def define_gen3auto():
 
         define_msm_la(
             msm_target = target_name,
+            msm_arch = target_arch,
             variant = variant,
             in_tree_module_list = mod_list,
             boot_image_opts = boot_image_opts(

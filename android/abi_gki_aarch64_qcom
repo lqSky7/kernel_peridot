@@ -73,6 +73,7 @@
   bin2hex
   bio_endio
   bio_end_io_acct_remapped
+  bio_split
   bio_start_io_acct
   bitmap_allocate_region
   __bitmap_and
@@ -93,6 +94,8 @@
   bit_wait
   bit_wait_timeout
   __blk_alloc_disk
+  blk_crypto_keyslot_index
+  blk_crypto_register
   blkdev_get_by_dev
   blk_execute_rq
   blk_execute_rq_nowait
@@ -813,6 +816,22 @@
   dma_unmap_sg_attrs
   dma_vmap_noncontiguous
   dma_vunmap_noncontiguous
+  dm_bufio_client_create
+  dm_bufio_client_destroy
+  dm_bufio_mark_buffer_dirty
+  dm_bufio_new
+  dm_bufio_read
+  dm_bufio_release
+  dm_bufio_write_dirty_buffers
+  dm_disk
+  dm_get_device
+  dm_kobject_release
+  dm_read_arg_group
+  dm_register_target
+  dm_shift_arg
+  dm_table_get_md
+  dm_table_get_mode
+  dm_unregister_target
   do_trace_netlink_extack
   do_trace_rcu_torture_read
   double_rq_lock
@@ -1067,6 +1086,7 @@
   edac_device_free_ctl_info
   edac_device_handle_ce_count
   edac_device_handle_ue_count
+  efi
   enable_irq
   enable_percpu_irq
   eth_commit_mac_addr_change
@@ -1550,6 +1570,7 @@
   iommu_group_get_iommudata
   iommu_group_put
   iommu_group_ref_get
+  iommu_group_remove_device
   iommu_group_set_iommudata
   iommu_iova_to_phys
   iommu_map
@@ -2017,6 +2038,7 @@
   __netif_napi_del
   netif_receive_skb
   netif_receive_skb_list
+  __netif_rx
   netif_rx
   netif_schedule_queue
   netif_set_real_num_rx_queues
@@ -2211,6 +2233,7 @@
   page_ext_put
   page_is_ram
   page_mapping
+  page_owner_inited
   page_pinner_inited
   __page_pinner_put_page
   page_pool_alloc_pages
@@ -2423,6 +2446,8 @@
   __pm_runtime_use_autosuspend
   __pm_stay_awake
   pm_stay_awake
+  pm_suspend_global_flags
+  pm_suspend_target_state
   pm_system_wakeup
   pm_wakeup_dev_event
   pm_wakeup_ws_event
@@ -2886,6 +2911,7 @@
   set_normalized_timespec64
   set_page_dirty_lock
   __SetPageMovable
+  __set_page_owner
   set_task_cpu
   setup_udp_tunnel_sock
   set_user_nice
@@ -3157,6 +3183,7 @@
   strchrnul
   strcmp
   strcpy
+  strcspn
   stream_open
   strim
   string_get_size
@@ -3267,7 +3294,10 @@
   topology_update_thermal_pressure
   _totalram_pages
   _trace_android_vh_record_pcpu_rwsem_starttime
+  _trace_android_vh_record_pcpu_rwsem_time_early
+  trace_array_get_by_name
   trace_array_put
+  trace_array_set_clr_event
   __trace_bprintk
   trace_clock_local
   trace_event_buffer_commit
@@ -3282,8 +3312,10 @@
   __traceiter_android_rvh_after_dequeue_task
   __traceiter_android_rvh_after_enqueue_task
   __traceiter_android_rvh_audio_usb_offload_disconnect
+  __traceiter_android_rvh_before_do_sched_yield
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
+  __traceiter_android_rvh_cgroup_force_kthread_migration
   __traceiter_android_rvh_check_preempt_tick
   __traceiter_android_rvh_check_preempt_wakeup
   __traceiter_android_rvh_check_preempt_wakeup_ignore
@@ -3294,6 +3326,7 @@
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_dequeue_task_fair
   __traceiter_android_rvh_do_sched_yield
+  __traceiter_android_rvh_before_do_sched_yield
   __traceiter_android_rvh_enqueue_entity
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_enqueue_task_fair
@@ -3355,11 +3388,13 @@
   __traceiter_android_rvh_update_thermal_stats
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_build_sched_domains
+  __traceiter_android_vh_bus_iommu_probe
   __traceiter_android_vh_check_hibernation_swap
   __traceiter_android_vh_check_uninterrupt_tasks
   __traceiter_android_vh_check_uninterrupt_tasks_done
@@ -3393,6 +3428,7 @@
   __traceiter_android_vh_rproc_recovery_set
   __traceiter_android_vh_save_cpu_resume
   __traceiter_android_vh_save_hib_resume_bdev
+  __traceiter_android_vh_scan_abort_check_wmarks
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
   __traceiter_android_vh_show_resume_epoch_val
@@ -3425,8 +3461,10 @@
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
   __tracepoint_android_rvh_audio_usb_offload_disconnect
+  __tracepoint_android_rvh_before_do_sched_yield
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
+  __tracepoint_android_rvh_cgroup_force_kthread_migration
   __tracepoint_android_rvh_check_preempt_tick
   __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_check_preempt_wakeup_ignore
@@ -3437,6 +3475,7 @@
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_dequeue_task_fair
   __tracepoint_android_rvh_do_sched_yield
+  __tracepoint_android_rvh_before_do_sched_yield
   __tracepoint_android_rvh_enqueue_entity
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_enqueue_task_fair
@@ -3498,11 +3537,13 @@
   __tracepoint_android_rvh_update_thermal_stats
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
   __tracepoint_android_vh_build_sched_domains
+  __tracepoint_android_vh_bus_iommu_probe
   __tracepoint_android_vh_check_hibernation_swap
   __tracepoint_android_vh_check_uninterrupt_tasks
   __tracepoint_android_vh_check_uninterrupt_tasks_done
@@ -3536,6 +3577,7 @@
   __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_save_cpu_resume
   __tracepoint_android_vh_save_hib_resume_bdev
+  __tracepoint_android_vh_scan_abort_check_wmarks
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
   __tracepoint_android_vh_show_resume_epoch_val
@@ -3735,6 +3777,7 @@
   usb_autopm_put_interface_async
   usb_bus_idr
   usb_bus_idr_lock
+  usb_check_bulk_endpoints
   usb_clear_halt
   usb_composite_setup_continue
   usb_control_msg
@@ -3894,6 +3937,7 @@
   vhost_add_used_and_signal
   vhost_dev_check_owner
   vhost_dev_cleanup
+  vhost_dev_flush
   vhost_dev_init
   vhost_dev_ioctl
   vhost_dev_stop
@@ -3981,6 +4025,7 @@
   wait_for_completion_interruptible_timeout
   wait_for_completion_killable
   wait_for_completion_timeout
+  wait_for_device_probe
   __wait_rcu_gp
   wait_woken
   __wake_up

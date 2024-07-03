@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
-
+#include <linux/of.h>
 #include "phy-qcom-ufs-qmp-v4-pineapple.h"
 
 #define UFS_PHY_NAME "ufs_phy_qmp_v4_pineapple"
@@ -338,6 +338,7 @@ out:
 
 static const struct of_device_id ufs_qcom_phy_qmp_v4_of_match[] = {
 	{.compatible = "qcom,ufs-phy-qmp-v4-pineapple"},
+	{.compatible = "qcom,ufs-phy-qmp-v4-cliffs"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ufs_qcom_phy_qmp_v4_of_match);

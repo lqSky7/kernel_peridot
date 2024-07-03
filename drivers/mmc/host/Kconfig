@@ -528,11 +528,12 @@ config MMC_ALCOR
 	  of Alcor Micro PCI-E card reader
 
 config MMC_AU1X
-	tristate "Alchemy AU1XX0 MMC Card Interface support"
+	bool "Alchemy AU1XX0 MMC Card Interface support"
 	depends on MIPS_ALCHEMY
+	depends on MMC=y
 	help
 	  This selects the AMD Alchemy(R) Multimedia card interface.
-	  If you have a Alchemy platform with a MMC slot, say Y or M here.
+	  If you have a Alchemy platform with a MMC slot, say Y here.
 
 	  If unsure, say N.
 
@@ -559,6 +560,21 @@ config MMC_SDHCI_MSM
 	  SD/MMC/SDIO devices.
 
 	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_MSM_SCALING
+	tristate "Qualcomm Technologies, Inc. clock scaling feature"
+	depends on MMC_CQHCI
+	select PM_DEVFREQ
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	help
+	  This change adds the use of devfreq based clock scaling to eMMC.
+	  Provide an ondemand clock scaling support similar
+	  to the cpufreq ondemand governor having two thresholds,
+	  up_threshold and down_threshold to decide whether to increase
+	  the frequency or scale it down respectively as per load to save
+	  power.
 
 	  If unsure, say N.
 

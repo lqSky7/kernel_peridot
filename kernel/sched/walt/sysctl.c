@@ -48,9 +48,15 @@ unsigned int sysctl_sched_wake_up_idle[2];
 unsigned int sysctl_input_boost_ms;
 unsigned int sysctl_input_boost_freq[8];
 unsigned int sysctl_sched_boost_on_input;
+
+//MIUI ADD: Performance_DoubleClickBoost
+unsigned int sysctl_double_click_input_boost_ms;
+unsigned int sysctl_double_click_input_boost_freq[8];
+unsigned int sysctl_double_click_sched_boost_on_input;
+//END Performance_DoubleClickBoost
+
 unsigned int sysctl_sched_early_up[MAX_MARGIN_LEVELS];
 unsigned int sysctl_sched_early_down[MAX_MARGIN_LEVELS];
-
 /* sysctl nodes accesed by other files */
 unsigned int __read_mostly sysctl_sched_coloc_downmigrate_ns;
 unsigned int __read_mostly sysctl_sched_group_downmigrate_pct;
@@ -74,8 +80,10 @@ unsigned int sysctl_sched_skip_sp_newly_idle_lb = 1;
 unsigned int sysctl_sched_hyst_min_coloc_ns = 80000000;
 unsigned int sysctl_sched_asymcap_boost;
 unsigned int sysctl_sched_long_running_rt_task_ms;
-unsigned int sysctl_sched_idle_enough;
-unsigned int sysctl_sched_cluster_util_thres_pct;
+unsigned int sysctl_sched_idle_enough = SCHED_IDLE_ENOUGH_DEFAULT;
+unsigned int sysctl_sched_cluster_util_thres_pct = SCHED_CLUSTER_UTIL_THRES_PCT_DEFAULT;
+unsigned int sysctl_sched_idle_enough_clust[MAX_CLUSTERS];
+unsigned int sysctl_sched_cluster_util_thres_pct_clust[MAX_CLUSTERS];
 unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
@@ -83,13 +91,117 @@ unsigned int sysctl_sched_heavy_nr;
 unsigned int sysctl_max_freq_partial_halt = FREQ_QOS_MAX_DEFAULT_VALUE;
 unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_sbt_pause_cpus;
+unsigned int sysctl_sched_sbt_enable = 1;
 unsigned int sysctl_sched_sbt_delay_windows;
 unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_pipeline_cpus;
 unsigned int fmax_cap[MAX_FREQ_CAP][MAX_CLUSTERS];
+/* Entries for 4 clusters and 10 tuples(3 item in each tuple */
+unsigned int sysctl_cluster_arr[4][MAX_FREQ_RELATIONS * TUPLE_SIZE] = {
+					[0] = {0, 0, 0},
+					[1] = {0, 0, 0},
+					[2] = {0, 0, 0},
+					[3] = {0, 0, 0},
+};
+struct freq_relation_map relation_data[MAX_CLUSTERS][MAX_FREQ_RELATIONS];
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
+
+static int sched_freq_map_handler(struct ctl_table *table, int write,
+					       void __user *buffer, size_t *lenp,
+					       loff_t *ppos)
+{
+	int i, idx = 0, ret = -EPERM;
+	unsigned int *data = (unsigned int *)table->data;
+	static DEFINE_MUTEX(ignore_cluster_mutex);
+	static int configured[MAX_CLUSTERS] = {0};
+	int index;
+	unsigned int val[MAX_FREQ_RELATIONS * TUPLE_SIZE];
+	unsigned int src_cluster_fmax;
+	unsigned int cluster_freq[MAX_CLUSTERS] = {0};
+	struct ctl_table tmp = {
+		.data	= &val,
+		.maxlen	= sizeof(unsigned int) * MAX_FREQ_RELATIONS * TUPLE_SIZE,
+		.mode	= table->mode,
+	};
+
+	if (num_sched_clusters <= 1)
+		return ret;
+
+	index = (data == sysctl_cluster_arr[0]) ? 0 : (data == sysctl_cluster_arr[1]) ?
+				1 : (data == sysctl_cluster_arr[2]) ? 2 : 3;
+
+	/* we are not allowing prime to have any relations for now */
+	if (index >= num_sched_clusters - 1)
+		return ret;
+
+	mutex_lock(&ignore_cluster_mutex);
+	if (!write) {
+		ret = proc_dointvec(table, write, buffer, lenp, ppos);
+		goto unlock;
+	}
+
+	/* updation allowed only once */
+	if (configured[index])
+		goto unlock;
+
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock;
+
+	src_cluster_fmax = sched_cluster[index]->max_possible_freq;
+	configured[index]  = 1;
+	/*
+	 * tuple format:
+	 * <a b c>:
+	 *	a : source cluster frequency
+	 *	b : first cpu of target cluster
+	 *	c : target cluster frequency
+	 */
+	for (i = 0; i < MAX_FREQ_RELATIONS; i++) {
+		int tgt_cluster_id;
+
+		idx = i * 3;
+
+		if ((val[idx + 0] == 0) || (val[idx + 1] >= cpumask_weight(cpu_possible_mask)) ||
+			(val[idx + 2] == 0))
+			break;
+
+		tgt_cluster_id = cpu_cluster(val[idx + 1])->id;
+
+		/* target cpu cannot be of same/lower cluster */
+		if (tgt_cluster_id <= index)
+			break;
+
+		/* frequency should be always same or increasing */
+		if (cluster_freq[index] > val[idx + 0])
+			break;
+		cluster_freq[index] = val[idx + 0];
+
+		if (cluster_freq[tgt_cluster_id] >= val[idx + 2])
+			break;
+		cluster_freq[tgt_cluster_id] = val[idx + 2];
+
+
+		relation_data[index][i].src_freq = data[idx + 0] = val[idx + 0];
+		relation_data[index][i].target_cluster_cpu = data[idx + 1] = val[idx + 1];
+		relation_data[index][i].tgt_freq = data[idx + 2] = val[idx + 2];
+	}
+
+	for (; i < MAX_FREQ_RELATIONS; i++) {
+		idx = i * 3;
+		relation_data[index][i].src_freq = data[idx + 0] = FREQ_QOS_MAX_DEFAULT_VALUE;
+		relation_data[index][i].target_cluster_cpu = data[idx + 1] = -1;
+		relation_data[index][i].tgt_freq = data[idx + 2] = FREQ_QOS_MAX_DEFAULT_VALUE;
+	}
+
+	update_freq_relation(sched_cluster[index]);
+
+unlock:
+	mutex_unlock(&ignore_cluster_mutex);
+	return ret;
+}
 
 static int walt_proc_group_thresholds_handler(struct ctl_table *table, int write,
 				       void __user *buffer, size_t *lenp,
@@ -684,12 +796,130 @@ int sched_fmax_cap_handler(struct ctl_table *table, int write,
 	}
 unlock_mutex:
 	mutex_unlock(&mutex);
+	return ret;
+}
+
+static DEFINE_MUTEX(idle_enough_mutex);
+
+int sched_idle_enough_handler(struct ctl_table *table, int write,
+			      void __user *buffer, size_t *lenp,
+			      loff_t *ppos)
+{
+	int ret, i;
+
+	mutex_lock(&idle_enough_mutex);
+
+	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update all per-cluster entries to match what was written */
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		sysctl_sched_idle_enough_clust[i] = sysctl_sched_idle_enough;
+
+unlock_mutex:
+	mutex_unlock(&idle_enough_mutex);
+
+	return ret;
+}
+
+int sched_idle_enough_clust_handler(struct ctl_table *table, int write,
+				    void __user *buffer, size_t *lenp,
+				    loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&idle_enough_mutex);
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update the single-entry to match the first cluster updated here */
+	sysctl_sched_idle_enough = sysctl_sched_idle_enough_clust[0];
+
+unlock_mutex:
+	mutex_unlock(&idle_enough_mutex);
+
+	return ret;
+}
+
+static DEFINE_MUTEX(util_thres_mutex);
+
+int sched_cluster_util_thres_pct_handler(struct ctl_table *table, int write,
+					 void __user *buffer, size_t *lenp,
+					 loff_t *ppos)
+{
+	int ret, i;
+
+	mutex_lock(&util_thres_mutex);
+
+	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update all per-cluster entries to match what was written */
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		sysctl_sched_cluster_util_thres_pct_clust[i] = sysctl_sched_cluster_util_thres_pct;
+
+unlock_mutex:
+	mutex_unlock(&util_thres_mutex);
+
+	return ret;
+}
+
+int sched_cluster_util_thres_pct_clust_handler(struct ctl_table *table, int write,
+					       void __user *buffer, size_t *lenp,
+					       loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&util_thres_mutex);
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update the single-entry to match the first cluster updated here */
+	sysctl_sched_cluster_util_thres_pct = sysctl_sched_cluster_util_thres_pct_clust[0];
+
+unlock_mutex:
+	mutex_unlock(&util_thres_mutex);
 
 	return ret;
 }
 #endif /* CONFIG_PROC_SYSCTL */
 
 struct ctl_table input_boost_sysctls[] = {
+//MIUI ADD: Performance_DoubleClickBoost
+	{
+		.procname	= "double_click_input_boost_ms",
+		.data		= &sysctl_double_click_input_boost_ms,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &one_hundred_thousand,
+	},
+	{
+		.procname	= "double_click_input_boost_freq",
+		.data		= &sysctl_double_click_input_boost_freq,
+		.maxlen		= sizeof(unsigned int) * 8,
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "double_click_sched_boost_on_input",
+		.data		= &sysctl_double_click_sched_boost_on_input,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+//END Performance_DoubleClickBoost
 	{
 		.procname	= "input_boost_ms",
 		.data		= &sysctl_input_boost_ms,
@@ -1136,18 +1366,36 @@ struct ctl_table walt_table[] = {
 	{
 		.procname	= "sched_cluster_util_thres_pct",
 		.data		= &sysctl_sched_cluster_util_thres_pct,
-		.maxlen		= sizeof(unsigned int),
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.proc_handler	= sched_cluster_util_thres_pct_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_cluster_util_thres_pct_clust",
+		.data		= &sysctl_sched_cluster_util_thres_pct_clust,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_cluster_util_thres_pct_clust_handler,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
 	},
 	{
 		.procname	= "sched_idle_enough",
 		.data		= &sysctl_sched_idle_enough,
-		.maxlen		= sizeof(unsigned int),
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.proc_handler	= sched_idle_enough_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_idle_enough_clust",
+		.data		= &sysctl_sched_idle_enough_clust,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_idle_enough_clust_handler,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
 	},
@@ -1187,64 +1435,101 @@ struct ctl_table walt_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &one_thousand_twenty_four,
 	},
-	{
-		.procname	= "sched_heavy_nr",
-		.data		= &sysctl_sched_heavy_nr,
+    {
+        .procname       = "sched_heavy_nr",
+        .data           = &sysctl_sched_heavy_nr,
+        .maxlen         = sizeof(unsigned int),
+        .mode           = 0644,
+        .proc_handler   = proc_douintvec_minmax,
+        .extra1         = SYSCTL_ZERO,
+        .extra2         = &walt_max_cpus,
+    },
+    {
+		.procname	= "sched_sbt_enable",
+		.data		= &sysctl_sched_sbt_enable,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= &walt_max_cpus,
+		.extra2		= SYSCTL_ONE,
 	},
 	{
-		.procname	= "sched_sbt_pause_cpus",
-		.data		= &sysctl_sched_sbt_pause_cpus,
-		.maxlen		= sizeof(unsigned int),
+            .procname       = "sched_sbt_pause_cpus",
+            .data           = &sysctl_sched_sbt_pause_cpus,
+            .maxlen         = sizeof(unsigned int),
+            .mode           = 0644,
+            .proc_handler   = walt_proc_sbt_pause_handler,
+            .extra1         = SYSCTL_ZERO,
+            .extra2         = SYSCTL_INT_MAX,
+    },
+    {
+            .procname       = "sched_sbt_delay_windows",
+            .data           = &sysctl_sched_sbt_delay_windows,
+            .maxlen         = sizeof(unsigned int),
+            .mode           = 0644,
+            .proc_handler   = proc_douintvec_minmax,
+            .extra1         = SYSCTL_ZERO,
+            .extra2         = SYSCTL_INT_MAX,
+    },
+    {
+			.procname	= "sched_pipeline_cpus",
+			.data		= &sysctl_sched_pipeline_cpus,
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= walt_proc_pipeline_cpus_handler,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+	},
+    {
+            .procname       = "sched_max_freq_partial_halt",
+            .data           = &sysctl_max_freq_partial_halt,
+            .maxlen         = sizeof(unsigned int),
+            .mode           = 0644,
+            .proc_handler   = proc_douintvec_minmax,
+            .extra1         = SYSCTL_ZERO,
+            .extra2         = SYSCTL_INT_MAX,
+    },
+    {
+            .procname       = "sched_fmax_cap",
+            .data           = &sysctl_fmax_cap,
+            .maxlen         = sizeof(unsigned int) * MAX_CLUSTERS,
+            .mode           = 0644,
+            .proc_handler   = sched_fmax_cap_handler,
+    },
+    {
+            .procname       = "sched_high_perf_cluster_freq_cap",
+            .data           = &high_perf_cluster_freq_cap,
+            .maxlen         = sizeof(unsigned int) * MAX_CLUSTERS,
+            .mode           = 0644,
+            .proc_handler   = sched_fmax_cap_handler,
+    },
+	{
+		.procname	= "sched_cluster0_freq_map",
+		.data		= sysctl_cluster_arr[0],
+		.maxlen		= sizeof(int) * MAX_FREQ_RELATIONS * TUPLE_SIZE,
 		.mode		= 0644,
-		.proc_handler	= walt_proc_sbt_pause_handler,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.proc_handler	= sched_freq_map_handler,
 	},
 	{
-		.procname	= "sched_sbt_delay_windows",
-		.data		= &sysctl_sched_sbt_delay_windows,
-		.maxlen		= sizeof(unsigned int),
+		.procname	= "sched_cluster1_freq_map",
+		.data		= sysctl_cluster_arr[1],
+		.maxlen		= sizeof(int) * MAX_FREQ_RELATIONS * TUPLE_SIZE,
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.proc_handler	= sched_freq_map_handler,
 	},
 	{
-		.procname	= "sched_pipeline_cpus",
-		.data		= &sysctl_sched_pipeline_cpus,
-		.maxlen		= sizeof(unsigned int),
+		.procname	= "sched_cluster2_freq_map",
+		.data		= sysctl_cluster_arr[2],
+		.maxlen		= sizeof(int) * MAX_FREQ_RELATIONS * TUPLE_SIZE,
 		.mode		= 0644,
-		.proc_handler	= walt_proc_pipeline_cpus_handler,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.proc_handler	= sched_freq_map_handler,
 	},
 	{
-		.procname	= "sched_max_freq_partial_halt",
-		.data		= &sysctl_max_freq_partial_halt,
-		.maxlen		= sizeof(unsigned int),
+		.procname	= "sched_cluster3_freq_map",
+		.data		= sysctl_cluster_arr[3],
+		.maxlen		= sizeof(int) * MAX_FREQ_RELATIONS * TUPLE_SIZE,
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
-	},
-	{
-		.procname	= "sched_fmax_cap",
-		.data		= &sysctl_fmax_cap,
-		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
-		.mode		= 0644,
-		.proc_handler	= sched_fmax_cap_handler,
-	},
-	{
-		.procname	= "sched_high_perf_cluster_freq_cap",
-		.data		= &high_perf_cluster_freq_cap,
-		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
-		.mode		= 0644,
-		.proc_handler	= sched_fmax_cap_handler,
+		.proc_handler	= sched_freq_map_handler,
 	},
 	{ }
 };
@@ -1298,16 +1583,34 @@ void walt_tunables(void)
 
 	sysctl_input_boost_ms = 40;
 
+//MIUI ADD: Performance_DoubleClickBoost
+	sysctl_double_click_input_boost_ms = 40;
+	sysctl_double_click_sched_boost_on_input = true;
+
+	for (i = 0; i < 8; i++)
+		sysctl_double_click_input_boost_freq[i]  = 0;
+//END Performance_DoubleClickBoost
+
 	for (i = 0; i < 8; i++)
 		sysctl_input_boost_freq[i] = 0;
 
 	for (i = 0; i < MAX_CLUSTERS; i++) {
 		sysctl_fmax_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
 		high_perf_cluster_freq_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+		sysctl_sched_idle_enough_clust[i] = SCHED_IDLE_ENOUGH_DEFAULT;
+		sysctl_sched_cluster_util_thres_pct_clust[i] = SCHED_CLUSTER_UTIL_THRES_PCT_DEFAULT;
 	}
 
 	for (i = 0; i < MAX_FREQ_CAP; i++) {
 		for (j = 0; j < MAX_CLUSTERS; j++)
 			fmax_cap[i][j] = FREQ_QOS_MAX_DEFAULT_VALUE;
+	}
+
+	for (i = 0; i < MAX_CLUSTERS; i++) {
+		for (j = 0; j < MAX_FREQ_RELATIONS; j++) {
+			relation_data[i][j].src_freq = relation_data[i][j].tgt_freq =
+									FREQ_QOS_MAX_DEFAULT_VALUE;
+			relation_data[i][j].target_cluster_cpu = -1;
+		}
 	}
 }

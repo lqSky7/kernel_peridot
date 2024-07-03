@@ -15,6 +15,7 @@
 
 static const struct debugfs_reg32 xhci_cap_regs[] = {
 	dump_register(CAPLENGTH),
+	dump_register(HCIVERSION),
 	dump_register(HCSPARAMS1),
 	dump_register(HCSPARAMS2),
 	dump_register(HCSPARAMS3),
@@ -133,6 +134,7 @@ static void xhci_debugfs_regset(struct xhci_hcd *xhci, u32 base,
 	regset->regs = regs;
 	regset->nregs = nregs;
 	regset->base = hcd->regs + base;
+	regset->dev = hcd->self.controller;
 
 	debugfs_create_regset32((const char *)rgs->name, 0444, parent, regset);
 }

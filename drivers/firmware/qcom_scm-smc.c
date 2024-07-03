@@ -14,8 +14,12 @@
 #include <linux/dma-mapping.h>
 #include <linux/qtee_shmbridge.h>
 #include <linux/qcom_scm_hab.h>
+#include <linux/wait.h>
 
 #include "qcom_scm.h"
+
+DECLARE_WAIT_QUEUE_HEAD(tzdbg_log_wq);
+EXPORT_SYMBOL(tzdbg_log_wq);
 
 static bool hab_calling_convention;
 
@@ -113,8 +117,9 @@ int scm_get_wq_ctx(u32 *wq_ctx, u32 *flags, u32 *more_pending)
 	return 0;
 }
 
+//MIUI ADD: Security_MiTrustedUI
 static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
-		    struct arm_smccc_res *res, const bool multi_smc_call)
+		    struct arm_smccc_res *res)
 {
 	struct completion *wq = NULL;
 	struct qcom_scm *qscm;
@@ -141,36 +146,25 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 			}
 
 			if (res->a0 == QCOM_SCM_WAITQ_SLEEP) {
-				if (multi_smc_call)
-					mutex_unlock(&qcom_scm_lock);
 				wait_for_completion(wq);
-				if (multi_smc_call)
-					mutex_lock(&qcom_scm_lock);
 				fill_wq_resume_args(smc, smc_call_ctx);
-				wq = NULL;
 				continue;
 			} else {
 				fill_wq_wake_ack_args(smc, smc_call_ctx);
+				scm_waitq_flag_handler(wq, flags);
 				continue;
 			}
 		} else if ((long)res->a0 < 0) {
 			/* Error, return to caller with original SMC call */
 			*smc = original;
 			break;
-		} else {
-			/*
-			 * Success.
-			 * wq will be set only if a prior WAKE happened.
-			 * Its value will be the one from the prior WAKE.
-			 */
-			if (wq)
-				scm_waitq_flag_handler(wq, flags);
-			break;
-		}
+		} else
+			return 0;
 	} while (IS_WAITQ_SLEEP_OR_WAKE(res));
 
 	return 0;
 }
+//END Security_MiTrustedUI
 
 static int __scm_smc_do(struct device *dev, struct arm_smccc_args *smc,
 			 struct arm_smccc_res *res,
@@ -184,11 +178,15 @@ static int __scm_smc_do(struct device *dev, struct arm_smccc_args *smc,
 		__scm_smc_do_quirk(smc, res);
 		return 0;
 	}
-
+	//MIUI ADD: Security_MiTrustedUI
 	do {
-		mutex_lock(&qcom_scm_lock);
-		ret = scm_smc_do_quirk(dev, smc, res, multi_smc_call);
-		mutex_unlock(&qcom_scm_lock);
+		if (!multi_smc_call)
+			mutex_lock(&qcom_scm_lock);
+		down(&qcom_scm_sem_lock);
+		ret = scm_smc_do_quirk(dev, smc, res);
+		up(&qcom_scm_sem_lock);
+		if (!multi_smc_call)
+			mutex_unlock(&qcom_scm_lock);
 		if (ret)
 			return ret;
 
@@ -199,6 +197,7 @@ static int __scm_smc_do(struct device *dev, struct arm_smccc_args *smc,
 			msleep(QCOM_SCM_EBUSY_WAIT_MS);
 		}
 	}  while (res->a0 == QCOM_SCM_V2_EBUSY);
+	//END Security_MiTrustedUI
 
 	return 0;
 }
@@ -295,7 +294,7 @@ int __scm_smc_call(struct device *dev, const struct qcom_scm_desc *desc,
 	}
 
 	ret = (long)smc_res.a0 ? qcom_scm_remap_error(smc_res.a0) : 0;
-
+	wake_up_interruptible(&tzdbg_log_wq);
 	return ret;
 }
 

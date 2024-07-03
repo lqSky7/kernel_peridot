@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016, 2019-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/clk.h>
 #include <linux/export.h>
@@ -776,6 +776,7 @@ void clk_common_debug_init(struct clk_hw *hw, struct dentry *dentry)
 		qcom_clk_debug_inited = true;
 	}
 }
+EXPORT_SYMBOL_GPL(clk_common_debug_init);
 
 static int clk_list_rate_vdd_level(struct clk_hw *hw, unsigned int rate)
 {
@@ -886,7 +887,7 @@ static int clock_debug_print_clock(struct hw_debug_clk *dclk, struct seq_file *s
 /*
  * clock_debug_print_enabled_clocks() - Print names of enabled clocks
  */
-static void clock_debug_print_enabled_clocks(struct seq_file *s)
+void clock_debug_print_enabled_clocks(struct seq_file *s)
 {
 	struct hw_debug_clk *dclk;
 	int cnt = 0;
@@ -902,6 +903,7 @@ static void clock_debug_print_enabled_clocks(struct seq_file *s)
 		clock_debug_output(s, "No clocks enabled.\n");
 
 }
+EXPORT_SYMBOL(clock_debug_print_enabled_clocks);
 
 static int enabled_clocks_show(struct seq_file *s, void *unused)
 {

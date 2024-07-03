@@ -193,7 +193,13 @@ static int drain_rq_cpu_stop(void *data)
 	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 
 	rq_lock_irqsave(rq, &rf);
+	/* rq lock is pinned */
+
+	/* migrate tasks assumes that the lock is pinned, and will unlock/repin */
 	migrate_tasks(rq, &rf);
+
+	/* __balance_callbacks can unlock and relock the rq lock. unpin */
+	rq_unpin_lock(rq, &rf);
 
 	/*
 	 * service any callbacks that were accumulated, prior to unlocking. such that
@@ -205,7 +211,8 @@ static int drain_rq_cpu_stop(void *data)
 	if (wrq->enqueue_counter)
 		WALT_BUG(WALT_BUG_WALT, NULL, "cpu: %d task was re-enqueued", cpu_of(rq));
 
-	rq_unlock_irqrestore(rq, &rf);
+	/* lock is no longer pinned, raw unlock using same flags as locking */
+	raw_spin_rq_unlock_irqrestore(rq, rf.flags);
 
 	return 0;
 }
@@ -488,17 +495,36 @@ int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 }
 EXPORT_SYMBOL_GPL(walt_partial_resume_cpus);
 
-/* return true if the requested client has fully halted one of the cpus */
+/**
+ * cpus_halted_by_client: determine if client has halted a cpu
+ *   where all cpus in the mask are halted.
+ *
+ * If all cpus in the cluster are halted, and one of them is
+ * halted for this client, then and only then indicate pass.
+ *
+ * Otherwise, if not all cpus are halted, or none of the cpus
+ * are halted by this particular client, then reject.
+ *
+ * return true if conditions are met, false otherwise.
+ */
 bool cpus_halted_by_client(struct cpumask *cpus, enum pause_client client)
 {
 	struct halt_cpu_state *halt_cpu_state;
+	bool cpu_halted_for_client = false;
 	int cpu;
 
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
-		if ((bool)(halt_cpu_state->client_vote_mask[HALT] & client))
-			return true;
+
+		if (!halt_cpu_state->client_vote_mask[HALT])
+			return false;
+
+		if (halt_cpu_state->client_vote_mask[HALT] & client)
+			cpu_halted_for_client = true;
 	}
+
+	if (cpu_halted_for_client)
+		return true;
 
 	return false;
 }
@@ -515,6 +541,28 @@ static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done
 		if (!available_idle_cpu(*cpu))
 			return;
 		default_cpu = *cpu;
+	}
+
+	/*
+	 * find first cpu halted by core control and try to avoid
+	 * affecting externally halted cpus.
+	 */
+	if (!cpumask_andnot(&unhalted, cpu_active_mask, cpu_halt_mask)) {
+		cpumask_t tmp_pause, tmp_part_pause, tmp_halt, *tmp;
+
+		cpumask_and(&tmp_part_pause, cpu_active_mask, &cpus_part_paused_by_us);
+		cpumask_and(&tmp_pause, cpu_active_mask, &cpus_paused_by_us);
+		cpumask_and(&tmp_halt, cpu_active_mask, cpu_halt_mask);
+		tmp = cpumask_weight(&tmp_part_pause) ? &tmp_part_pause :
+			cpumask_weight(&tmp_pause) ? &tmp_pause : &tmp_halt;
+
+		for_each_cpu(i, tmp) {
+			if ((*cpu == i) && cpumask_weight(tmp) > 1)
+				continue;
+
+			*cpu = i;
+			return;
+		}
 	}
 
 	rcu_read_lock();

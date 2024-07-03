@@ -771,6 +771,7 @@ DEFINE_CLK_RPMH_VRM_OPT(pineapple, rf_clk5, rf_clk5_ao, "clka5", 2);
 DEFINE_CLK_RPMH_VRM_OPT(pineapple, ln_bb_clk1, ln_bb_clk1_ao, "clka6", 2);
 DEFINE_CLK_RPMH_VRM_OPT(pineapple, ln_bb_clk2, ln_bb_clk2_ao, "clka7", 2);
 DEFINE_CLK_RPMH_VRM_OPT(pineapple, ln_bb_clk3, ln_bb_clk3_ao, "clka8", 2);
+DEFINE_CLK_RPMH_VRM_OPT(pineapple, ln_bb_clk4, ln_bb_clk4_ao, "clka9", 2);
 
 static struct clk_hw *pineapple_rpmh_clocks[] = {
 	[RPMH_CXO_PAD_CLK]      = &pineapple_xo_pad.hw,
@@ -794,6 +795,8 @@ static struct clk_hw *pineapple_rpmh_clocks[] = {
 	[RPMH_RF_CLK5]		= &pineapple_rf_clk5.hw,
 	[RPMH_RF_CLK5_A]	= &pineapple_rf_clk5_ao.hw,
 	[RPMH_IPA_CLK]		= &sdm845_ipa.hw,
+	[RPMH_LN_BB_CLK4]	= &pineapple_ln_bb_clk4.hw,
+	[RPMH_LN_BB_CLK4_A]	= &pineapple_ln_bb_clk4_ao.hw,
 };
 
 static const struct clk_rpmh_desc clk_rpmh_pineapple = {
@@ -817,6 +820,44 @@ static struct clk_hw *sm6150_rpmh_clocks[] = {
 static const struct clk_rpmh_desc clk_rpmh_sm6150 = {
 	.clks = sm6150_rpmh_clocks,
 	.num_clks = ARRAY_SIZE(sm6150_rpmh_clocks),
+};
+
+static struct clk_hw *cliffs_rpmh_clocks[] = {
+	[RPMH_CXO_PAD_CLK]	= &pineapple_xo_pad.hw,
+	[RPMH_CXO_PAD_CLK_A]	= &pineapple_xo_pad_ao.hw,
+	[RPMH_CXO_CLK]		= &pineapple_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]	= &pineapple_bi_tcxo_ao.hw,
+	[RPMH_LN_BB_CLK2]	= &pineapple_ln_bb_clk2.hw,
+	[RPMH_LN_BB_CLK2_A]	= &pineapple_ln_bb_clk2_ao.hw,
+	[RPMH_LN_BB_CLK3]	= &pineapple_ln_bb_clk3.hw,
+	[RPMH_LN_BB_CLK3_A]	= &pineapple_ln_bb_clk3_ao.hw,
+	[RPMH_RF_CLK1]		= &pineapple_rf_clk1.hw,
+	[RPMH_RF_CLK1_A]	= &pineapple_rf_clk1_ao.hw,
+	[RPMH_RF_CLK2]		= &pineapple_rf_clk2.hw,
+	[RPMH_RF_CLK2_A]	= &pineapple_rf_clk2_ao.hw,
+	[RPMH_IPA_CLK]		= &sdm845_ipa.hw,
+};
+
+static const struct clk_rpmh_desc clk_rpmh_cliffs = {
+	.clks = cliffs_rpmh_clocks,
+	.num_clks = ARRAY_SIZE(cliffs_rpmh_clocks),
+};
+
+static struct clk_hw *niobe_rpmh_clocks[] = {
+	[RPMH_CXO_PAD_CLK]	= &pineapple_xo_pad.hw,
+	[RPMH_CXO_PAD_CLK_A]	= &pineapple_xo_pad_ao.hw,
+	[RPMH_CXO_CLK]		= &pineapple_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]	= &pineapple_bi_tcxo_ao.hw,
+	[RPMH_LN_BB_CLK3]	= &pineapple_ln_bb_clk3.hw,
+	[RPMH_LN_BB_CLK3_A]	= &pineapple_ln_bb_clk3_ao.hw,
+	[RPMH_RF_CLK1]		= &pineapple_rf_clk1.hw,
+	[RPMH_RF_CLK1_A]	= &pineapple_rf_clk1_ao.hw,
+	[RPMH_IPA_CLK]		= &sdm845_ipa.hw,
+};
+
+static const struct clk_rpmh_desc clk_rpmh_niobe = {
+	.clks = niobe_rpmh_clocks,
+	.num_clks = ARRAY_SIZE(niobe_rpmh_clocks),
 };
 
 static int clk_rpmh_probe(struct platform_device *pdev)
@@ -911,6 +952,8 @@ static const struct of_device_id clk_rpmh_match_table[] = {
 	{ .compatible = "qcom,pineapple-rpmh-clk", .data = &clk_rpmh_pineapple},
 	{ .compatible = "qcom,sm6150-rpmh-clk", .data = &clk_rpmh_sm6150},
 	{ .compatible = "qcom,lemans-rpmh-clk", .data = &clk_rpmh_lemans},
+	{ .compatible = "qcom,cliffs-rpmh-clk", .data = &clk_rpmh_cliffs},
+	{ .compatible = "qcom,niobe-rpmh-clk", .data = &clk_rpmh_niobe},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_rpmh_match_table);

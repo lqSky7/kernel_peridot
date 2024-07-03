@@ -12,9 +12,10 @@
 #include <linux/qcom_scm.h>
 #include <linux/qtee_shmbridge.h>
 
-#include <ufs/ufshcd-crypto.h>
 #include <linux/crypto-qti-common.h>
 #include "ufs-qcom.h"
+
+#include <ufs/ufshcd-crypto-qti.h>
 
 #define AES_256_XTS_KEY_SIZE			64
 
@@ -200,7 +201,7 @@ void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
 {
 	struct ice_mmio_data mmio_data;
 
-	if (!host)
+	if (!host || !((host->hba->caps & UFSHCD_CAP_CRYPTO)))
 		return;
 
 	mmio_data.ice_base_mmio = host->ice_mmio;
