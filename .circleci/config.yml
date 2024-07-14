@@ -44,8 +44,7 @@ jobs:
           name: Build
           command: |
             cd $CIRCLE_WORKING_DIRECTORY/kernel
-            wget https://raw.githubusercontent.com/lqsky7/kernel-peridot/staging/peridot/config.env
-            wget https://raw.githubusercontent.com/lqsky7/kernel-peridot/staging/peridot/build.sh && chmod +x ./build.sh
-            wget https://raw.githubusercontent.com/lqsky7/kernel-peridot/staging/peridot/KSU.patch
+            wget https://raw.githubusercontent.com/lqsky7/kernel_peridot/staging/peridot/config.env
+            wget https://raw.githubusercontent.com/lqSky7/kernel_perodit/staging/peridot/build.sh && chmod +x ./build.sh
             echo "Building."
             ./build.sh
