@@ -38,13 +38,13 @@ jobs:
             git config --global user.email "catinice@outlook.com"
             git clone ${KERNEL_REPO} -b ${KERNEL_BRANCH} --depth=1 kernel
           environment:
-            KERNEL_REPO: https://github.com/lqSky7/kernel_perodit
+            KERNEL_REPO: https://github.com/lqSky7/kernel_peridot
             KERNEL_BRANCH: staging/peridot
       - run:
           name: Build
           command: |
             cd $CIRCLE_WORKING_DIRECTORY/kernel
             wget https://raw.githubusercontent.com/lqsky7/kernel_peridot/staging/peridot/config.env
-            wget https://raw.githubusercontent.com/lqSky7/kernel_perodit/staging/peridot/build.sh && chmod +x ./build.sh
+            wget https://raw.githubusercontent.com/lqSky7/kernel_peridot/staging/peridot/build.sh && chmod +x ./build.sh
             echo "Building."
             ./build.sh
