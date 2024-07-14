@@ -34,8 +34,8 @@ jobs:
           name: Clone kernel repo
           command: |
             cd $CIRCLE_WORKING_DIRECTORY
-            git config --global user.name "${CIRCLE_PROJECT_USERNAME}"
-            git config --global user.email "${CIRCLE_PROJECT_USERNAME}@gmail.com"
+            git config --global user.name "lqsky7"
+            git config --global user.email "catinice@outlook.com"
             git clone ${KERNEL_REPO} -b ${KERNEL_BRANCH} --depth=1 kernel
           environment:
             KERNEL_REPO: https://github.com/lqSky7/kernel_perodit
